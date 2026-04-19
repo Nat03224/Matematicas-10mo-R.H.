@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Torneo de Ecuaciones</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#faf9f6;--ink:#111;--muted:#888;--border:#e0ddd6;
+  --surface:#fff;--surface2:#f3f2ef;
+  --gold:#c8982a;--gold-light:#fdf3dc;--gold-border:#e8c96a;
+  --red:#c0392b;--red-light:#fdf0ee;
+  --green:#1a6e3c;--green-light:#edf7f2;
+  --blue:#1a3f7a;--blue-light:#eef2fb;
+}
+body{font-family:'DM Mono',monospace;background:var(--bg);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 16px;}
+
+/* grain */
+body::after{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:999;}
+
+.screen{width:100%;max-width:900px;display:none;flex-direction:column;align-items:center;}
+.screen.active{display:flex;}
+
+/* ── INICIO ─────────────────────────────────────────── */
+.title{font-family:'DM Serif Display',serif;font-size:clamp(3rem,9vw,5.5rem);text-align:center;line-height:.95;letter-spacing:-1px;margin-bottom:6px;}
+.title em{font-style:italic;color:var(--gold);}
+.subtitle{font-size:11px;letter-spacing:4px;color:var(--muted);text-align:center;text-transform:uppercase;margin-bottom:48px;}
+
+.diff-row{display:flex;gap:12px;margin-bottom:36px;flex-wrap:wrap;justify-content:center;}
+.diff-btn{background:var(--surface);border:1.5px solid var(--border);border-radius:8px;padding:12px 24px;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;transition:all .15s;color:var(--ink);}
+.diff-btn:hover{border-color:var(--ink);}
+.diff-btn.sel{background:var(--ink);color:var(--bg);border-color:var(--ink);}
+
+.pairs-section{width:100%;margin-bottom:36px;}
+.pairs-label{font-size:10px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:14px;text-align:center;}
+.pairs-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.pair-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;}
+.pair-num{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.pair-inputs{display:flex;flex-direction:column;gap:6px;}
+.pair-input{background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:9px 12px;font-family:'DM Mono',monospace;font-size:13px;color:var(--ink);outline:none;width:100%;transition:border-color .15s;}
+.pair-input:focus{border-color:var(--ink);}
+.pair-sep{font-size:10px;color:var(--muted);text-align:center;letter-spacing:1px;}
+
+.btn-primary{background:var(--ink);color:var(--bg);font-family:'DM Mono',monospace;font-size:14px;letter-spacing:2px;padding:16px 64px;border:none;border-radius:8px;cursor:pointer;transition:opacity .15s;text-transform:uppercase;}
+.btn-primary:hover{opacity:.82;}
+
+/* ── BRACKET ─────────────────────────────────────────── */
+.bracket-header{width:100%;text-align:center;margin-bottom:30px;}
+.bracket-round-label{font-size:10px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+.bracket-round-name{font-family:'DM Serif Display',serif;font-size:2.4rem;}
+
+.bracket-visual{width:100%;display:flex;flex-direction:column;gap:10px;margin-bottom:30px;}
+.bracket-match{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;}
+.b-pair{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 16px;transition:border-color .2s;}
+.b-pair.winner{border-color:var(--gold);background:var(--gold-light);}
+.b-pair.loser{opacity:.4;}
+.b-pair.bye{border-style:dashed;opacity:.6;}
+.b-pair-label{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;margin-bottom:3px;}
+.b-pair-name{font-size:15px;font-weight:500;}
+.b-vs{font-size:11px;letter-spacing:2px;color:var(--muted);}
+
+.btn-start-match{background:var(--ink);color:var(--bg);border:none;border-radius:8px;padding:14px 40px;font-family:'DM Mono',monospace;font-size:14px;letter-spacing:2px;cursor:pointer;transition:opacity .15s;text-transform:uppercase;}
+.btn-start-match:hover{opacity:.82;}
+
+/* ── BATALLA ─────────────────────────────────────────── */
+.match-header{width:100%;display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:center;margin-bottom:24px;}
+.mh-side{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 18px;}
+.mh-side.right{text-align:right;}
+.mh-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:4px;}
+.mh-name{font-family:'DM Serif Display',serif;font-size:1.4rem;line-height:1.1;}
+.mh-vs{text-align:center;}
+.mh-vs-text{font-family:'DM Serif Display',serif;font-size:1.8rem;color:var(--muted);}
+
+/* timer */
+.timer-wrap{width:100%;margin-bottom:20px;}
+.timer-bar-bg{height:5px;background:var(--surface2);border-radius:999px;overflow:hidden;}
+.timer-bar{height:100%;background:var(--ink);border-radius:999px;transition:width .1s linear,background .4s;}
+.timer-num{text-align:center;font-size:13px;color:var(--muted);margin-top:6px;}
+
+/* ecuación */
+.eq-display{width:100%;background:var(--ink);border-radius:12px;padding:28px;text-align:center;margin-bottom:20px;}
+.eq-display-label{font-size:9px;letter-spacing:4px;color:rgba(255,255,255,.4);text-transform:uppercase;margin-bottom:12px;}
+.eq-display-text{font-family:'DM Serif Display',serif;font-size:clamp(1.6rem,5vw,3rem);color:#fff;letter-spacing:1px;}
+
+/* pasos */
+.steps-row{width:100%;display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.step-pill{flex:1;min-width:80px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 12px;text-align:center;transition:all .2s;}
+.step-pill.active{border-color:var(--ink);border-width:2px;}
+.step-pill.done-p1{background:var(--blue-light);border-color:#a0b8e0;}
+.step-pill.done-p2{background:var(--red-light);border-color:#e0a0a0;}
+.step-pill-num{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.step-pill-label{font-size:12px;margin-top:2px;}
+
+/* inputs de batalla */
+.battle-inputs{display:grid;grid-template-columns:1fr 1fr;gap:14px;width:100%;margin-bottom:16px;}
+.battle-zone{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:16px;transition:border-color .2s,box-shadow .2s;}
+.battle-zone.p1-active{border-color:#1a3f7a;}
+.battle-zone.p2-active{border-color:#c0392b;}
+.battle-zone.correct{border-color:var(--green);background:var(--green-light);animation:pulse .4s;}
+.battle-zone.wrong{border-color:var(--red);background:var(--red-light);animation:shake .3s;}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.02)}}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
+.bz-label{font-size:9px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;}
+.bz-label.p1{color:var(--blue);}
+.bz-label.p2{color:var(--red);}
+.bz-step-info{font-size:12px;color:var(--muted);margin-bottom:10px;}
+.bz-input-row{display:flex;gap:6px;align-items:center;}
+.bz-prefix{font-size:16px;white-space:nowrap;}
+.bz-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:'DM Mono',monospace;font-size:18px;color:var(--ink);outline:none;transition:border-color .15s;width:100%;}
+.bz-input:focus{border-color:var(--ink);}
+.bz-btn{background:var(--ink);color:#fff;border:none;border-radius:6px;padding:10px 14px;font-family:'DM Mono',monospace;font-size:13px;cursor:pointer;white-space:nowrap;}
+.bz-feedback{font-size:12px;margin-top:8px;min-height:16px;font-weight:500;}
+.bz-feedback.ok{color:var(--green);}
+.bz-feedback.err{color:var(--red);}
+.bz-feedback.late{color:var(--muted);}
+
+.match-status{text-align:center;font-size:13px;color:var(--muted);margin-bottom:8px;min-height:20px;}
+
+/* ── RESULTADO MATCH ─────────────────────────────────── */
+.match-result{width:100%;text-align:center;padding:20px 0;}
+.mr-winner-label{font-size:10px;letter-spacing:4px;color:var(--muted);text-transform:uppercase;margin-bottom:8px;}
+.mr-winner-name{font-family:'DM Serif Display',serif;font-size:clamp(2.5rem,8vw,4.5rem);color:var(--gold);margin-bottom:6px;}
+.mr-winner-sub{font-size:13px;color:var(--muted);margin-bottom:36px;}
+.mr-solution{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;width:100%;margin-bottom:30px;}
+.mr-sol-label{font-size:9px;letter-spacing:3px;color:var(--muted);text-transform:uppercase;margin-bottom:12px;}
+.sol-steps{display:flex;flex-direction:column;gap:6px;}
+.sol-step{display:flex;align-items:center;gap:12px;font-size:13px;}
+.sol-step-num{width:22px;height:22px;border-radius:50%;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;}
+.sol-step-desc{color:var(--muted);flex:1;}
+.sol-step-val{font-weight:500;}
+
+/* ── CAMPEÓN ─────────────────────────────────────────── */
+.champion-screen{text-align:center;padding:20px 0;}
+.trophy{font-size:72px;margin-bottom:16px;animation:float 2s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.champ-label{font-size:10px;letter-spacing:5px;color:var(--muted);text-transform:uppercase;margin-bottom:10px;}
+.champ-name{font-family:'DM Serif Display',serif;font-size:clamp(2.5rem,9vw,5rem);color:var(--gold);line-height:1;margin-bottom:6px;}
+.champ-sub{font-size:14px;color:var(--muted);margin-bottom:48px;}
+.champ-history{width:100%;display:flex;flex-direction:column;gap:8px;margin-bottom:40px;}
+.hist-row{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;}
+.hist-round{font-size:10px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;}
+.hist-winner{color:var(--gold);}
+
+@media(max-width:580px){
+  .pairs-grid{grid-template-columns:1fr 1fr;}
+  .battle-inputs{grid-template-columns:1fr;}
+  .bracket-match{grid-template-columns:1fr;text-align:center;}
+  .b-vs{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- ══ PANTALLA 1: INICIO ══ -->
+<div class="screen active" id="s-start">
+  <div class="title">Torneo de<br><em>Ecuaciones</em></div>
+  <p class="subtitle">6 parejas · Eliminación directa</p>
+
+  <div class="diff-row">
+    <button class="diff-btn sel" onclick="setDiff('easy',this)">Fácil</button>
+    <button class="diff-btn" onclick="setDiff('medium',this)">Normal</button>
+    <button class="diff-btn" onclick="setDiff('hard',this)">Difícil</button>
+  </div>
+
+  <div class="pairs-section">
+    <div class="pairs-label">Nombres de las parejas</div>
+    <div class="pairs-grid" id="pairs-grid"></div>
+  </div>
+
+  <button class="btn-primary" onclick="initTournament()">Iniciar Torneo →</button>
+</div>
+
+<!-- ══ PANTALLA 2: BRACKET ══ -->
+<div class="screen" id="s-bracket">
+  <div class="bracket-header">
+    <div class="bracket-round-label">Ronda actual</div>
+    <div class="bracket-round-name" id="br-round-name"></div>
+  </div>
+  <div class="bracket-visual" id="bracket-visual"></div>
+  <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:20px;" id="br-hint"></div>
+  <button class="btn-start-match" id="btn-start-match" onclick="startNextMatch()">Iniciar siguiente enfrentamiento →</button>
+</div>
+
+<!-- ══ PANTALLA 3: BATALLA ══ -->
+<div class="screen" id="s-battle">
+  <div class="match-header">
+    <div class="mh-side">
+      <div class="mh-label">Pareja A</div>
+      <div class="mh-name" id="mh-name1"></div>
+    </div>
+    <div class="mh-vs"><div class="mh-vs-text">vs</div></div>
+    <div class="mh-side right">
+      <div class="mh-label">Pareja B</div>
+      <div class="mh-name" id="mh-name2"></div>
+    </div>
+  </div>
+
+  <div class="timer-wrap">
+    <div class="timer-bar-bg"><div class="timer-bar" id="timer-bar" style="width:100%"></div></div>
+    <div class="timer-num" id="timer-num">60s</div>
+  </div>
+
+  <div class="eq-display">
+    <div class="eq-display-label">Despeja x</div>
+    <div class="eq-display-text" id="eq-text"></div>
+  </div>
+
+  <div class="steps-row" id="steps-row"></div>
+  <div class="match-status" id="match-status"></div>
+
+  <div class="battle-inputs">
+    <!-- PAREJA 1 -->
+    <div class="battle-zone p1-active" id="zone1">
+      <div class="bz-label p1" id="bz-name1"></div>
+      <div class="bz-step-info" id="bz-task1"></div>
+      <div class="bz-input-row">
+        <span class="bz-prefix" id="bz-prefix1"></span>
+        <input class="bz-input" id="bz-input1" type="text" placeholder="respuesta..." autocomplete="off">
+        <button class="bz-btn" onclick="submitAnswer(1)">OK</button>
+      </div>
+      <div class="bz-feedback" id="bz-fb1"></div>
+    </div>
+    <!-- PAREJA 2 -->
+    <div class="battle-zone p2-active" id="zone2">
+      <div class="bz-label p2" id="bz-name2"></div>
+      <div class="bz-step-info" id="bz-task2"></div>
+      <div class="bz-input-row">
+        <span class="bz-prefix" id="bz-prefix2"></span>
+        <input class="bz-input" id="bz-input2" type="text" placeholder="respuesta..." autocomplete="off">
+        <button class="bz-btn" onclick="submitAnswer(2)">OK</button>
+      </div>
+      <div class="bz-feedback" id="bz-fb2"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PANTALLA 4: RESULTADO MATCH ══ -->
+<div class="screen" id="s-match-result">
+  <div class="match-result">
+    <div class="mr-winner-label">Ganador del enfrentamiento</div>
+    <div class="mr-winner-name" id="mr-name"></div>
+    <div class="mr-winner-sub" id="mr-sub"></div>
+    <div class="mr-solution">
+      <div class="mr-sol-label">Solución correcta</div>
+      <div class="sol-steps" id="sol-steps"></div>
+    </div>
+    <button class="btn-primary" onclick="afterMatch()">Continuar →</button>
+  </div>
+</div>
+
+<!-- ══ PANTALLA 5: CAMPEÓN ══ -->
+<div class="screen" id="s-champion">
+  <div class="champion-screen" style="width:100%">
+    <div class="trophy">🏆</div>
+    <div class="champ-label">Campeón del torneo</div>
+    <div class="champ-name" id="champ-name"></div>
+    <div class="champ-sub">¡Ecuaciones conquistadas!</div>
+    <div class="champ-history" id="champ-history"></div>
+    <button class="btn-primary" onclick="location.reload()">Nuevo torneo</button>
+  </div>
+</div>
+
+<script>
+// ── ECUACIONES ────────────────────────────────────────────────────────────
+const EQS = {
+  easy:[
+    {eq:'2x + 4 = 10',ans:3,steps:[
+      {desc:'Restar 4',action:'Pasa el +4 al otro lado',prefix:'2x =',expected:'6',hint:'10 − 4'},
+      {desc:'Dividir ÷2',action:'Divide entre el coeficiente',prefix:'x =',expected:'3',hint:'6 ÷ 2'},
+    ]},
+    {eq:'3x − 6 = 9',ans:5,steps:[
+      {desc:'Sumar 6',action:'Pasa el −6 al otro lado',prefix:'3x =',expected:'15',hint:'9 + 6'},
+      {desc:'Dividir ÷3',action:'Divide entre el coeficiente',prefix:'x =',expected:'5',hint:'15 ÷ 3'},
+    ]},
+    {eq:'5x = 35',ans:7,steps:[
+      {desc:'Dividir ÷5',action:'Divide entre 5',prefix:'x =',expected:'7',hint:'35 ÷ 5'},
+    ]},
+    {eq:'x/2 + 1 = 5',ans:8,steps:[
+      {desc:'Restar 1',action:'Pasa el +1 al otro lado',prefix:'x/2 =',expected:'4',hint:'5 − 1'},
+      {desc:'Multiplicar ×2',action:'Multiplica ambos lados por 2',prefix:'x =',expected:'8',hint:'4 × 2'},
+    ]},
+    {eq:'4x + 8 = 20',ans:3,steps:[
+      {desc:'Restar 8',action:'Pasa el +8 al otro lado',prefix:'4x =',expected:'12',hint:'20 − 8'},
+      {desc:'Dividir ÷4',action:'Divide entre 4',prefix:'x =',expected:'3',hint:'12 ÷ 4'},
+    ]},
+    {eq:'x − 7 = 3',ans:10,steps:[
+      {desc:'Sumar 7',action:'Pasa el −7 al otro lado',prefix:'x =',expected:'10',hint:'3 + 7'},
+    ]},
+    {eq:'6x = 42',ans:7,steps:[
+      {desc:'Dividir ÷6',action:'Divide entre 6',prefix:'x =',expected:'7',hint:'42 ÷ 6'},
+    ]},
+  ],
+  medium:[
+    {eq:'4x + 7 = 23',ans:4,steps:[
+      {desc:'Restar 7',action:'Pasa el +7 al otro lado',prefix:'4x =',expected:'16',hint:'23 − 7'},
+      {desc:'Dividir ÷4',action:'Divide entre 4',prefix:'x =',expected:'4',hint:'16 ÷ 4'},
+    ]},
+    {eq:'5x − 3 = 2x + 12',ans:5,steps:[
+      {desc:'Agrupar x',action:'Pasa el 2x al lado izquierdo',prefix:'3x − 3 =',expected:'12',hint:'5x − 2x = 3x'},
+      {desc:'Sumar 3',action:'Pasa el −3 al otro lado',prefix:'3x =',expected:'15',hint:'12 + 3'},
+      {desc:'Dividir ÷3',action:'Divide entre 3',prefix:'x =',expected:'5',hint:'15 ÷ 3'},
+    ]},
+    {eq:'2(x + 4) = 18',ans:5,steps:[
+      {desc:'Distributiva',action:'Aplica 2·x + 2·4',prefix:'2x + 8 =',expected:'18',hint:'2·x + 2·4 = 18'},
+      {desc:'Restar 8',action:'Pasa el +8 al otro lado',prefix:'2x =',expected:'10',hint:'18 − 8'},
+      {desc:'Dividir ÷2',action:'Divide entre 2',prefix:'x =',expected:'5',hint:'10 ÷ 2'},
+    ]},
+    {eq:'7x − 4 = 3x + 16',ans:5,steps:[
+      {desc:'Agrupar x',action:'Pasa el 3x al lado izquierdo',prefix:'4x − 4 =',expected:'16',hint:'7x − 3x = 4x'},
+      {desc:'Sumar 4',action:'Pasa el −4 al otro lado',prefix:'4x =',expected:'20',hint:'16 + 4'},
+      {desc:'Dividir ÷4',action:'Divide entre 4',prefix:'x =',expected:'5',hint:'20 ÷ 4'},
+    ]},
+    {eq:'3(2x − 1) = 15',ans:3,steps:[
+      {desc:'Distributiva',action:'Aplica 3·2x − 3·1',prefix:'6x − 3 =',expected:'15',hint:'3·2x = 6x, 3·1 = 3'},
+      {desc:'Sumar 3',action:'Pasa el −3 al otro lado',prefix:'6x =',expected:'18',hint:'15 + 3'},
+      {desc:'Dividir ÷6',action:'Divide entre 6',prefix:'x =',expected:'3',hint:'18 ÷ 6'},
+    ]},
+  ],
+  hard:[
+    {eq:'3(2x − 1) = 4x + 7',ans:5,steps:[
+      {desc:'Distributiva',action:'Aplica 3·2x − 3·1',prefix:'6x − 3 =',expected:'4x + 7',hint:'6x − 3 = 4x + 7'},
+      {desc:'Agrupar x',action:'Pasa el 4x al lado izquierdo',prefix:'2x − 3 =',expected:'7',hint:'6x − 4x = 2x'},
+      {desc:'Sumar 3',action:'Pasa el −3 al otro lado',prefix:'2x =',expected:'10',hint:'7 + 3'},
+      {desc:'Dividir ÷2',action:'Divide entre 2',prefix:'x =',expected:'5',hint:'10 ÷ 2'},
+    ]},
+    {eq:'x/2 + x/3 = 5',ans:6,steps:[
+      {desc:'MCM = 6',action:'Multiplica todo por 6',prefix:'3x + 2x =',expected:'30',hint:'6·x/2 = 3x, 6·x/3 = 2x, 6·5 = 30'},
+      {desc:'Sumar términos',action:'Suma los x del lado izquierdo',prefix:'5x =',expected:'30',hint:'3x + 2x'},
+      {desc:'Dividir ÷5',action:'Divide entre 5',prefix:'x =',expected:'6',hint:'30 ÷ 5'},
+    ]},
+    {eq:'2(x+3) = 3(x−1)',ans:9,steps:[
+      {desc:'Distributiva ambos lados',action:'Aplica distributiva',prefix:'2x + 6 =',expected:'3x − 3',hint:'2·x+2·3 = 3·x−3·1'},
+      {desc:'Agrupar x',action:'Pasa el 3x al lado izquierdo',prefix:'−x + 6 =',expected:'−3',hint:'2x − 3x = −x'},
+      {desc:'Restar 6',action:'Pasa el +6 al otro lado',prefix:'−x =',expected:'−9',hint:'−3 − 6'},
+      {desc:'Multiplicar ×(−1)',action:'Despeja x multiplicando por −1',prefix:'x =',expected:'9',hint:'−(−9) = 9'},
+    ]},
+  ]
+};
+
+// ── ESTADO ────────────────────────────────────────────────────────────────
+let T = {}; // tournament state
+
+function setDiff(d, btn) {
+  T.diff = d;
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+// Build pair inputs on load
+(function buildPairs(){
+  const g = document.getElementById('pairs-grid');
+  g.innerHTML = '';
+  for(let i=1;i<=6;i++){
+    g.innerHTML += `<div class="pair-card">
+      <div class="pair-num">Pareja ${i}</div>
+      <div class="pair-inputs">
+        <input class="pair-input" id="pa${i}" placeholder="Alumno 1..." value="Alumno ${(i-1)*2+1}" maxlength="14">
+        <div class="pair-sep">&</div>
+        <input class="pair-input" id="pb${i}" placeholder="Alumno 2..." value="Alumno ${(i-1)*2+2}" maxlength="14">
+      </div>
+    </div>`;
+  }
+})();
+
+// ── TORNEO ────────────────────────────────────────────────────────────────
+function initTournament(){
+  if(!T.diff) T.diff = 'easy';
+  const pairs = [];
+  for(let i=1;i<=6;i++){
+    const a = document.getElementById(`pa${i}`).value.trim() || `Alumno ${(i-1)*2+1}`;
+    const b = document.getElementById(`pb${i}`).value.trim() || `Alumno ${(i-1)*2+2}`;
+    pairs.push(`${a} & ${b}`);
+  }
+
+  // Shuffle
+  for(let i=pairs.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [pairs[i],pairs[j]]=[pairs[j],pairs[i]];
+  }
+
+  // Bracket: R1 = 3 matches (6→3 winners), Semi = 1 match + 1 bye, Final = 1 match
+  // R1 matchups: [0vs1], [2vs3], [4vs5]
+  T = {
+    ...T, pairs,
+    rounds: ['Ronda 1','Semifinal','Final'],
+    roundIndex: 0,
+    // matches per round: R1=3 matches, Semi=2 slots (1 match + bye), Final=1 match
+    matchQueue: [], // matches to play this round
+    roundWinners: [], // winners accumulate
+    matchHistory: [], // {round, p1, p2, winner}
+    currentMatch: null,
+    usedEqs: new Set()
+  };
+
+  buildRound1();
+  renderBracket();
+  show('s-bracket');
+}
+
+function buildRound1(){
+  T.matchQueue = [
+    {p1: T.pairs[0], p2: T.pairs[1]},
+    {p1: T.pairs[2], p2: T.pairs[3]},
+    {p1: T.pairs[4], p2: T.pairs[5]},
+  ];
+  T.roundWinners = [];
+}
+
+function renderBracket(){
+  const rName = T.rounds[T.roundIndex];
+  document.getElementById('br-round-name').textContent = rName;
+
+  const vis = document.getElementById('bracket-visual');
+  vis.innerHTML = '';
+
+  if(T.roundIndex === 0){
+    // Show all 3 matches of R1, highlight played ones
+    T.matchQueue.forEach((m,i)=>{
+      const played = i < (3 - T.matchQueue.filter((x,j)=> j>=T.roundIndex).length) ? true : false;
+      vis.innerHTML += matchRow(m.p1, m.p2, '');
+    });
+    document.getElementById('br-hint').textContent = `3 enfrentamientos · Los 3 ganadores pasan a semifinal`;
+  } else if(T.roundIndex === 1){
+    // Semi: winners from R1. 3 winners → 1 match + 1 bye
+    const w = T.roundWinners;
+    vis.innerHTML += matchRow(w[0], w[1], '');
+    vis.innerHTML += `<div class="bracket-match"><div class="b-pair bye"><div class="b-pair-label">Pase directo</div><div class="b-pair-name">${w[2]}</div></div><div class="b-vs"></div><div></div></div>`;
+    document.getElementById('br-hint').textContent = `${w[2]} pasa directo a la final`;
+  } else {
+    // Final
+    const w = T.roundWinners;
+    vis.innerHTML += matchRow(w[0], w[1], '');
+    document.getElementById('br-hint').textContent = `¡El gran final!`;
+  }
+
+  // Button state
+  const btn = document.getElementById('btn-start-match');
+  if(T.matchQueue.length === 0 && T.roundIndex < 2){
+    btn.textContent = 'Ver siguiente ronda →';
+    btn.onclick = advanceRound;
+  } else if(T.matchQueue.length === 0 && T.roundIndex === 2){
+    btn.style.display = 'none';
+  } else {
+    btn.textContent = `Iniciar enfrentamiento →`;
+    btn.onclick = startNextMatch;
+    btn.style.display = '';
+  }
+}
+
+function matchRow(p1, p2, cls){
+  return `<div class="bracket-match">
+    <div class="b-pair ${cls}"><div class="b-pair-label">Pareja</div><div class="b-pair-name">${p1}</div></div>
+    <div class="b-vs">vs</div>
+    <div class="b-pair ${cls}"><div class="b-pair-label">Pareja</div><div class="b-pair-name">${p2}</div></div>
+  </div>`;
+}
+
+function advanceRound(){
+  T.roundIndex++;
+  if(T.roundIndex === 1){
+    // Build semi: 3 winners → match[0]vs[1], bye=[2]
+    T.matchQueue = [{p1: T.roundWinners[0], p2: T.roundWinners[1]}];
+    // bye winner added after semi match
+  } else if(T.roundIndex === 2){
+    // Final: semi winner + bye winner
+    T.matchQueue = [{p1: T.roundWinners[0], p2: T.roundWinners[1]}];
+  }
+  T.roundWinners = [];
+  renderBracket();
+}
+
+// ── MATCH ──────────────────────────────────────────────────────────────────
+function startNextMatch(){
+  const match = T.matchQueue.shift();
+  T.currentMatch = match;
+
+  // Pick equation not used yet
+  const pool = EQS[T.diff];
+  let eq;
+  const unused = pool.filter((_,i) => !T.usedEqs.has(i));
+  const pickFrom = unused.length > 0 ? unused : pool;
+  const idx = pool.indexOf(pickFrom[Math.floor(Math.random()*pickFrom.length)]);
+  T.usedEqs.add(idx);
+  eq = pool[idx];
+
+  T.currentEq = eq;
+  T.p1 = { name: match.p1, step: 0, done: false, totalTime: 0, startTime: Date.now() };
+  T.p2 = { name: match.p2, step: 0, done: false, totalTime: 0, startTime: Date.now() };
+
+  // UI
+  document.getElementById('mh-name1').textContent = match.p1;
+  document.getElementById('mh-name2').textContent = match.p2;
+  document.getElementById('bz-name1').textContent = match.p1;
+  document.getElementById('bz-name2').textContent = match.p2;
+  document.getElementById('eq-text').textContent = eq.eq;
+
+  renderSteps();
+  updateInputsUI();
+  clearInterval(T.timerInterval);
+  startTimer(60);
+  clearFeedback();
+  show('s-battle');
+  document.getElementById('bz-input1').focus();
+}
+
+function renderSteps(){
+  const eq = T.currentEq;
+  const row = document.getElementById('steps-row');
+  row.innerHTML = eq.steps.map((s,i)=>{
+    const p1done = T.p1.step > i;
+    const p2done = T.p2.step > i;
+    const isActive = i === Math.min(T.p1.step, T.p2.step);
+    let cls = '';
+    if(p1done && p2done) cls = 'done-p1'; // both done (shouldn't happen mid-game but safe)
+    else if(p1done) cls = 'done-p1';
+    else if(p2done) cls = 'done-p2';
+    else if(isActive) cls = 'active';
+    return `<div class="step-pill ${cls}">
+      <div class="step-pill-num">Paso ${i+1}</div>
+      <div class="step-pill-label">${s.desc}</div>
+    </div>`;
+  }).join('');
+}
+
+function updateInputsUI(){
+  const eq = T.currentEq;
+  const p1s = eq.steps[T.p1.step];
+  const p2s = eq.steps[T.p2.step];
+
+  if(!T.p1.done && p1s){
+    document.getElementById('bz-task1').textContent = `Paso ${T.p1.step+1}: ${p1s.action}`;
+    document.getElementById('bz-prefix1').textContent = p1s.prefix;
+  }
+  if(!T.p2.done && p2s){
+    document.getElementById('bz-task2').textContent = `Paso ${T.p2.step+1}: ${p2s.action}`;
+    document.getElementById('bz-prefix2').textContent = p2s.prefix;
+  }
+
+  document.getElementById('bz-input1').disabled = T.p1.done;
+  document.getElementById('bz-input2').disabled = T.p2.done;
+}
+
+function clearFeedback(){
+  ['bz-fb1','bz-fb2'].forEach(id=>{ const el=document.getElementById(id); el.textContent=''; el.className='bz-feedback'; });
+  document.getElementById('match-status').textContent = '';
+}
+
+function submitAnswer(player){
+  const p = player===1 ? T.p1 : T.p2;
+  const other = player===1 ? T.p2 : T.p1;
+  if(p.done) return;
+
+  const input = document.getElementById(`bz-input${player}`);
+  const val = input.value.trim();
+  if(!val) return;
+
+  const eq = T.currentEq;
+  const step = eq.steps[p.step];
+  const correct = val === step.expected;
+  const fb = document.getElementById(`bz-fb${player}`);
+  const zone = document.getElementById(`zone${player}`);
+
+  if(correct){
+    p.step++;
+    fb.textContent = `✓ Paso ${p.step} correcto`;
+    fb.className = 'bz-feedback ok';
+    zone.classList.remove('wrong'); zone.classList.add('correct');
+    setTimeout(()=>zone.classList.remove('correct'), 500);
+    input.value = '';
+
+    if(p.step >= eq.steps.length){
+      // ¡terminó!
+      p.done = true;
+      p.totalTime = ((Date.now() - p.startTime) / 1000).toFixed(1);
+      clearInterval(T.timerInterval);
+      input.disabled = true;
+      matchOver(player);
+      return;
+    }
+    renderSteps();
+    updateInputsUI();
+    input.focus();
+  } else {
+    fb.textContent = `✗ Incorrecto — pista: ${step.hint}`;
+    fb.className = 'bz-feedback err';
+    zone.classList.remove('correct'); zone.classList.add('wrong');
+    setTimeout(()=>zone.classList.remove('wrong'), 400);
+    input.value = '';
+    input.focus();
+  }
+}
+
+document.addEventListener('keydown', e=>{
+  if(e.key === 'Enter'){
+    // Enter in input1 → submit 1, else if focused on input2 → submit 2
+    if(document.activeElement === document.getElementById('bz-input1')) submitAnswer(1);
+    else if(document.activeElement === document.getElementById('bz-input2')) submitAnswer(2);
+  }
+});
+
+function startTimer(secs){
+  T.timeLeft = secs;
+  const bar = document.getElementById('timer-bar');
+  const num = document.getElementById('timer-num');
+  bar.style.width = '100%';
+  bar.style.background = 'var(--ink)';
+  T.timerInterval = setInterval(()=>{
+    T.timeLeft--;
+    const pct = (T.timeLeft / secs)*100;
+    bar.style.width = pct+'%';
+    bar.style.background = pct>50?'var(--ink)':pct>20?'var(--gold)':'var(--red)';
+    num.textContent = T.timeLeft + 's';
+    if(T.timeLeft <= 0){
+      clearInterval(T.timerInterval);
+      // Who is further?
+      if(!T.p1.done && !T.p2.done){
+        const winner = T.p1.step >= T.p2.step ? 1 : 2;
+        matchOver(winner, true);
+      }
+    }
+  }, 1000);
+}
+
+function matchOver(winnerNum, byTime=false){
+  const winner = winnerNum===1 ? T.p1 : T.p2;
+  const loser  = winnerNum===1 ? T.p2 : T.p1;
+  clearInterval(T.timerInterval);
+
+  // Record
+  T.matchHistory.push({
+    round: T.rounds[T.roundIndex],
+    p1: T.currentMatch.p1, p2: T.currentMatch.p2, winner: winner.name
+  });
+  T.roundWinners.push(winner.name);
+
+  // Result screen
+  document.getElementById('mr-name').textContent = winner.name;
+  document.getElementById('mr-sub').textContent = byTime
+    ? `Más pasos completados en el tiempo límite`
+    : `Ecuación resuelta en ${winner.totalTime}s`;
+
+  // Show solution
+  const ss = document.getElementById('sol-steps');
+  ss.innerHTML = T.currentEq.steps.map((s,i)=>`
+    <div class="sol-step">
+      <div class="sol-step-num">${i+1}</div>
+      <div class="sol-step-desc">${s.action}</div>
+      <div class="sol-step-val">${s.prefix} ${s.expected}</div>
+    </div>`).join('');
+
+  show('s-match-result');
+}
+
+function afterMatch(){
+  // Check if round is over
+  if(T.matchQueue.length > 0){
+    // More matches in this round
+    renderBracket();
+    show('s-bracket');
+  } else {
+    // Round done
+    if(T.roundIndex === 0){
+      // After R1: 3 winners → build semi
+      T.roundIndex = 1;
+      T.matchQueue = [{p1: T.roundWinners[0], p2: T.roundWinners[1]}];
+      T.byePair = T.roundWinners[2];
+      T.roundWinners = [];
+      renderBracket();
+      show('s-bracket');
+    } else if(T.roundIndex === 1){
+      // After semi: 1 match winner + bye pair → final
+      const semiWinner = T.roundWinners[0];
+      T.roundIndex = 2;
+      T.matchQueue = [{p1: semiWinner, p2: T.byePair}];
+      T.roundWinners = [];
+      renderBracket();
+      show('s-bracket');
+    } else {
+      // Tournament over!
+      showChampion();
+    }
+  }
+}
+
+function showChampion(){
+  const champ = T.roundWinners[0] || T.matchHistory[T.matchHistory.length-1].winner;
+  document.getElementById('champ-name').textContent = champ;
+
+  const hist = document.getElementById('champ-history');
+  hist.innerHTML = T.matchHistory.map(m=>`
+    <div class="hist-row">
+      <span class="hist-round">${m.round}</span>
+      <span>${m.p1} vs ${m.p2}</span>
+      <span class="hist-winner">→ ${m.winner}</span>
+    </div>`).join('');
+
+  show('s-champion');
+}
+
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+</script>
+</body>
+</html>
